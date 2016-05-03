@@ -74,8 +74,8 @@ channels.each do |channel|
   count_muscles(json, beginning_of_the_day, channel[0][:id])
 end
 
-message = "test: 今日の筋肉は #{$muscle_count.to_s} でした。\n筋肉つけていこうな :muscle:"
-url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=%3Amuscle%3A"
+message = "今日の筋肉は #{$muscle_count} でした。\n筋肉つけていこうな :muscle:"
+url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=:muscle:"
 
 uri = URI.encode(url)
 Net::HTTP.get(URI.parse(uri))
