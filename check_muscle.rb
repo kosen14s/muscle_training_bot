@@ -20,7 +20,7 @@ def count_muscles(json, std_of_the_day, channel_id)
   if valid?(json)
     json['messages'].each do |message|
       if Time.at(message['ts'].to_i) > std_of_the_day
-        $muscle_count += message['text'].scan(MUSCLE).size
+        $muscle_count += message['text'].to_s.scan(MUSCLE).size
 
         if message['reactions']
           message['reactions'].each do |reaction|
