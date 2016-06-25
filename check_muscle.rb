@@ -24,7 +24,7 @@ def count_muscles(json, std_of_the_day, channel_id)
 
         if message['reactions']
           message['reactions'].each do |reaction|
-            $muscle_count += reaction['users'].count if reaction['name'] == MUSCLE
+            $muscle_count += reaction['users'].count if reaction['name'].include?(MUSCLE)
           end
         end
       else
