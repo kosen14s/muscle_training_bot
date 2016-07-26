@@ -77,7 +77,6 @@ channels.each do |channel|
 end
 
 message = "今日の筋肉は #{$muscle_count} でした。\n筋肉つけていこうな :muscle:"
-puts message
 url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=:muscle:"
 
 uri = URI.encode(url)
