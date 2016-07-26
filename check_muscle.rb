@@ -20,13 +20,15 @@ def count_muscles(json, std_of_the_day, channel_id)
   if valid?(json)
     json['messages'].each do |message|
       if Time.at(message['ts'].to_i) > std_of_the_day
-        $muscle_count += message['text'].to_s.scan(MUSCLE).size
+		MUSCLES.each do |muscle|
+		  $muscle_count += message['text'].to_s.scan(muscle).size
 
-        if message['reactions']
-          message['reactions'].each do |reaction|
-            $muscle_count += reaction['users'].count if reaction['name'].include?(MUSCLE)
-          end
-        end
+		  if message['reactions']
+			message['reactions'].each do |reaction|
+			  $muscle_count += reaction['users'].count if reaction['name'].include?(muscle)
+			end
+		  end
+		end
       else
         break
       end
@@ -45,7 +47,7 @@ end
 
 Dotenv.load
 
-MUSCLE = "muscle"
+MUSCLES = %w(muscle kinniku)
 $muscle_count = 0
 channels = []
 
@@ -75,7 +77,8 @@ channels.each do |channel|
 end
 
 message = "今日の筋肉は #{$muscle_count} でした。\n筋肉つけていこうな :muscle:"
-url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=:muscle:"
-
-uri = URI.encode(url)
-Net::HTTP.get(URI.parse(uri))
+puts message
+#url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=:muscle:"
+#
+#uri = URI.encode(url)
+#Net::HTTP.get(URI.parse(uri))
