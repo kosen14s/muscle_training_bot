@@ -5,77 +5,99 @@ require 'dotenv'
 
 def get_json(url)
   res = Net::HTTP.get(URI.parse(url))
-  JSON.parse(res)
+  json = JSON.parse(res)
+  json if json.valid?
 end
 
-def valid?(json)
-  json['ok']
+class Hash
+  def valid?
+    self['ok']
+  end
+
+  def has_more?
+    self['has_more']
+  end
 end
 
-def has_more?(json)
-  json['has_more']
-end
+class Slack
+  MUSCLES = /muscle|kinniku/
 
-def count_muscles(json, std_of_the_day, channel_id)
-  if valid?(json)
+  def initialize(token)
+    @token = token
+  end
+
+  def channels
+    url = "https://slack.com/api/channels.list?token=#{@token}"
+    json = get_json(url)
+    json['channels'].map { |channel| channel['id'] }
+  end
+
+  def messages(channel_id, since, latest = nil)
+    messages = []
+    url = "https://slack.com/api/channels.history?token=#{@token}&channel=#{channel_id}"
+    url += "&latest=#{latest}" if latest
+    json = get_json(url)
+
     json['messages'].each do |message|
-      if Time.at(message['ts'].to_i) > std_of_the_day
-        $muscle_count += message['text'].to_s.scan(MUSCLES).size
-
-        if message['reactions']
-          message['reactions'].each do |reaction|
-            $muscle_count += reaction['count'] if reaction['name'].scan(MUSCLES).size.positive?
-          end
-        end
+      if message['ts'].to_i > since.to_i
+        messages << message
       else
-        break
+        return messages
       end
     end
 
-    if has_more?(json)
+    if json.has_more?
       latest = json['messages'].last['ts']
-      url = "https://slack.com/api/channels.history?token=#{ENV['TOKEN']}&channel=#{channel_id}&latest=#{latest}"
-      json = get_json(url)
-      count_muscles(json, std_of_the_day, channel_id) if has_more?(json)
+      messages += self.messages(channel_id, since, latest)
     end
+
+    messages
   end
 
-  $muscle_count
+  def count_muscles(channel_id, since)
+    muscle = 0
+    messages = self.messages(channel_id, since)
+
+    messages.each do |message|
+      muscle += message['text'].to_s.scan(MUSCLES).size
+
+      if message['reactions']
+        message['reactions'].each do |reaction|
+          muscle += reaction['count'] if reaction['name'].scan(MUSCLES).size.positive?
+        end
+      end
+    end
+
+    muscle
+  end
+
+  def count_all_muscles(since)
+    muscles = 0
+    self.channels.each do |channel|
+      muscles += self.count_muscles(channel, since)
+    end
+
+    muscles
+  end
+
+  def post(channel_id, message, username, icon_emoji)
+    url = "https://slack.com/api/chat.postMessage?token=#{@token}&channel=#{channel_id}&text=#{message}&username=#{username}&icon_emoji=#{icon_emoji}"
+    uri = URI.encode(url)
+    Net::HTTP.get(URI.parse(uri))
+  end
 end
 
 Dotenv.load
 
-MUSCLES = /muscle|kinniku/
-$muscle_count = 0
-channels = []
+slack = Slack.new(ENV['TOKEN'])
 
-# 時間、比較用
-time = Time.now
-year = time.year
-month = time.month
-day = time.day
-std_of_the_day = Time.new(year, month, day, 21) - (24 * 60 * 60)
+now = Time.new
+since = Time.new(now.year, now.month, now.day, 21) - (24 * 60 * 60)
+muscle_count = slack.count_all_muscles(since)
 
-url = "https://slack.com/api/channels.list?token=#{ENV['TOKEN']}"
-json_ch = get_json(url)
+channel_id = "C157LN04W"
+message = "今日の筋肉は #{muscle_count} でした。\n筋肉つけていこうな :muscle:"
+username = "muscle_trainer"
+icon_emoji = ":muscle:"
 
-# 全チャンネル取得
-if valid?(json_ch)
-  json_ch['channels'].each do |ch|
-    channels << [id: ch['id'], name: ch['name']]
-  end
-end
-
-# メッセージとreactions取得
-channels.each do |channel|
-  url = "https://slack.com/api/channels.history?token=#{ENV['TOKEN']}&channel=#{channel[0][:id]}"
-  json = get_json(url)
-
-  count_muscles(json, std_of_the_day, channel[0][:id])
-end
-
-message = "今日の筋肉は #{$muscle_count} でした。\n筋肉つけていこうな :muscle:"
-url = "https://slack.com/api/chat.postMessage?token=#{ENV['TOKEN']}&channel=C157LN04W&text=#{message}&username=muscle_trainer&icon_emoji=:muscle:"
-
-uri = URI.encode(url)
-Net::HTTP.get(URI.parse(uri))
+slack.post(channel_id, message, username, icon_emoji)
